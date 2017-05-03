@@ -275,8 +275,7 @@ def DNAcopy(entraDNAcopy):
     _=_-1
     _.loc[_.size] = _.size
     d_base['Position'] = _
-    __ = pd.DataFrame(d_base['Chromosome'],dtype=float)
-    d_base['Chromosome'] = __['Chromosome']
+    d_base['Chromosome'] = 1
     d_base=d_base.fillna(0)
     d_base['Coriell.05296'] = entraDNAcopy
     data_r= com.convert_to_r_dataframe(d_base)
@@ -342,10 +341,13 @@ def pontosDNAcopy(segmentadoR,arrayOrig):
     #print('acertos {} fn {} ,fp {}'.format(acertos,false_positive,false_negative))
     return (acertos,false_positive,false_negative)
 
-def dataTestCNV(length,maxSec,TIMESTEPS,regressor):
+def dataTestCNV(length,maxSec,TIMESTEPS,regressor,i=0):
     #batch de teste
     #retorna o erro e acerto de um teste utilizando o tcnv e dnacopy
-    (train_x,train_y),(orig_test_x,orig_test_y),(valid_x,valid_y) = retCNV2(length,maxSec,train=5)
+    (train_x,train_y),(orig_test_x,orig_test_y),(valid_x,valid_y) = retCNV2(length,maxSec,train=1)
+    
+    #salvar dados
+    inp.setPairCtoCSV(orig_test_x,orig_test_y,"test_valid"+str(i)+".csv")
     
     testX = inp.rnn_data(orig_test_x,TIMESTEPS)
     with tf.device('/gpu:0'):
@@ -367,13 +369,18 @@ def dataTestCNV(length,maxSec,TIMESTEPS,regressor):
     entraDNAcopy=np.log2(orig_test_x['0L']/orig_test_x['0R'])
     segmentadoR=DNAcopy(entraDNAcopy)
     acertos,false_positive,false_negative = pontosDNAcopy(segmentadoR,arrayDeslocado)
+    
+    #erro divisao por 0
+    if(acertosT==0): acertosT=1
+    if(acertos==0): acertos=1
     return (acertosT,false_positiveT,false_negativeT),(acertos,false_positive,false_negative)
 
 def comparaSeg(length,maxSec,TIMESTEPS,regressor,qtd=1):
     scorTCNV=pd.DataFrame(index=range(qtd), columns=['tp', 'fp', 'fn', 'ppv', 'sn','score'])
     scorDNAC=pd.DataFrame(index=range(qtd), columns=['tp', 'fp', 'fn', 'ppv', 'sn','score'])
     for i in range(qtd):
-        (tpt,fpt,fnt),(tpd,fpd,fnd) = dataTestCNV(length,maxSec,TIMESTEPS,regressor)
+        (tpt,fpt,fnt),(tpd,fpd,fnd) = dataTestCNV(length,maxSec,TIMESTEPS,regressor,i=i)
+        
         ppvt=tpt/(tpt+fpt)
         snt=tpt/(tpt+fnt)
         ppvd=tpd/(tpd+fpd)
